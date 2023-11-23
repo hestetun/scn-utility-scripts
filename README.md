@@ -14,6 +14,7 @@ Make sure that the naming is done properly on both src volumes.
 
 * 20231123
     * Initial release of update_commercial_ext-ssd_edit.sh
+    * Initial release of new-vfx_wayhome.sh
  
 ## Authors
 
