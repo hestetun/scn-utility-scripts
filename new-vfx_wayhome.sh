@@ -29,6 +29,7 @@ echo "" >> $LOGF
 
 ## rsync command
 $RSYNC -rltvhR --info=progress2  "$SRC" "$DEST" >> $LOGF
+echo "" >> $LOGF
 
 ## Some sexy reports
 echo "Size of temp-disk" >> $LOGF
