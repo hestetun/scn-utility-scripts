@@ -4,17 +4,21 @@
 if ! command -v exrinfo &> /dev/null
 then
     echo "exrinfo could not be found, please install OpenEXR utilities"
+    exit 1
 fi
 
 # Function to process an EXR file
 process_exr() {
     exrfile=$1
-    output=$(exrinfo -v -a $exrfile | awk -F: '/compression|channels|displayWindow/ { gsub(/^[ \t]+/, "", $2); print $1 ": " $2}')
+    output=$(exrinfo -v -a $exrfile 2>&1)
     if [ $? -ne 0 ]
     then
-        echo "$exrfile is corrupt" >> "${corrupt_file}"
+        # Echo the error message directly
+        echo "ERROR processing '$exrfile': $output"
+        return 1
     else
-        echo "$output"
+        echo "$output" | awk -F: '/compression|channels|displayWindow/ { gsub(/^[ \t]+/, "", $2); print $1 ": " $2}'
+        return 0
     fi
 }
 
@@ -27,22 +31,24 @@ else
     dir=$1
 fi
 
-# Remove any trailing slash from the directory path
-dir=$(echo $dir | sed 's:/*$::')
+script_dir=$(dirname $0)
+dir=$(echo $dir | sed 's:/*$::') # Remove any trailing slash from the directory path
+mkdir -p "${script_dir}/_logs" # Create _logs directory if it doesn't exist
+dir_name=$(basename "$dir")
+today=$(date +%Y%m%d)
+log_file="${script_dir}/_logs/${dir_name}_${today}.log"
 
 # Show a message that the directory is being processed
-echo "Processing $dir for EXRs"
+echo "🏎️ VFX-comp sync started on $HOSTNAME on ${today}🏎️ \n\nProcessing $dir for EXRs" | tee -a "${log_file}"
 
-# Name of the corrupt files list
-today=$(date +%Y%m%d)
-corrupt_file="${dir}_corrupt_${today}.txt"
+# Find all EXR files in the directory and its subdirectories, and sort them
+exrfiles=$(find "$dir" -type f -name '*.exr' | sort -V)
 
-# Find all EXR files in the directory and its subdirectories
-exrfiles=$(find "$dir" -type f -name '*.exr')
+# Initialize an empty string for errors
+errors=""
 
 # Process each file
 sequence_name=""
-properties=""
 for file in $exrfiles
 do
     base_name=$(basename $file)
@@ -52,24 +58,36 @@ do
     then
         sequence_name=$sequence
         prop=$(process_exr $file)
+        if [ $? -ne 0 ]
+        then
+            # If process_exr returned an error, add prop to the errors string and continue to the next file
+            errors+="$prop\n"
+            continue
+        fi
         properties="$sequence_name\n$prop"
-        echo "$properties"
+        echo "$properties" | sed 's/-e //g' | tee -a "${log_file}"
     else
         new_prop=$(process_exr $file)
+        if [ $? -ne 0 ]
+        then
+            # If process_exr returned an error, add new_prop to the errors string and continue to the next file
+            errors+="$new_prop\n"
+            continue
+        fi
         if [[ "$new_prop" != "$prop" ]]
         then
-            echo "Metadata inconsistency found in sequence $sequence_name"
+            echo "Metadata inconsistency found in sequence $sequence_name" | tee -a "${log_file}"
         fi
     fi
 done
 
-# Echo the corrupt files
-if [ -f "${corrupt_file}" ]
+# After your main loop...
+if [ -n "$errors" ]
 then
-    echo "Corrupt files listed in: ${corrupt_file}"
+    echo "\nErrors occurred while processing EXR files:\n$errors" | tee -a "${log_file}"
 fi
 
 # Success message
-echo "All sequences have been processed and verified."
+echo "All sequences have been processed. Check the log file ${log_file} for the result.\n\n\n" | tee -a "${log_file}"
 
 exit 0
