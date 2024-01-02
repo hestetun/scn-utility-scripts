@@ -41,7 +41,7 @@ TODAY="$(date '+%y%m%d_%H%M')"
 STODAY="$(date '+%y%m%d')"
 LOGDIR=~/Library/Logs/
 $MKDIR -p $LOGDIR/editvol_bck # this line creates the directory if it does not exist
-LOGF=$LOGDIR/editvol_bck/edit_vol_bck_$PROJ_NAME"_"$TODAY.log
+LOGF=$LOGDIR/editvol_bck/edit_vol_bck"_"$PROJ_NAME"_"$TODAY.log
 EXCLUDE_LIST=~/git/editvol_bck/edit_exclude.txt
 EMAIL_ADRESS=scntech@shortcutoslo.no
 
