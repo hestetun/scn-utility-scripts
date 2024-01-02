@@ -15,6 +15,8 @@ Make sure that the naming is done properly on both src volumes.
 * 20231123
     * Initial release of update_commercial_ext-ssd_edit.sh
     * Initial release of new-vfx_wayhome.sh
+ * 20240102
+    * Initial release of edit_vol_bck_external_purk.sh. Backup-script modified to work with projects outside our default structure
  
 ## Authors
 
