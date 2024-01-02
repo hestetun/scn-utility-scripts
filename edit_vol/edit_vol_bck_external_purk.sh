@@ -1,7 +1,7 @@
 #!/bin/bash   
 ## Version 1.5.2	
 # Special Version for external projects not following our structure
-### In order to modify this script to work with different projects, modify the common variables $SINGLE_VOLS, $ABSLT_PATH and $PROJ_NAME.
+### In order to modify this script to work with different projects, modify the special variables $SINGLE_VOLS, $ABSLT_PATH and $PROJ_NAME.
 
 ## command variables
 TAR=/usr/bin/tar
@@ -30,6 +30,11 @@ else
     exit 1
 fi
 
+## Special variables for the projects
+SINGLE_VOLS=`mount | $GREP "production" | $AWK '{print substr($3, 10)}'` # specific for purk
+ABSLT_PATH=/Volumes/production/Projects/prk01_tv2_2024/00_PROSJEKTFIL/ # absolute path to project
+PROJ_NAME=purk
+
 ## Common variables
 DEST=/Volumes/temp/_edit_backs
 TODAY="$(date '+%y%m%d_%H%M')"
@@ -39,10 +44,6 @@ $MKDIR -p $LOGDIR/editvol_bck # this line creates the directory if it does not e
 LOGF=$LOGDIR/editvol_bck/edit_vol_bck_$PROJ_NAME"_"$TODAY.log
 EXCLUDE_LIST=~/git/editvol_bck/edit_exclude.txt
 EMAIL_ADRESS=scntech@shortcutoslo.no
-SINGLE_VOLS=`mount | $GREP "production" | $AWK '{print substr($3, 10)}'` # specific for purk
-ABSLT_PATH=/Volumes/production/Projects/prk01_tv2_2024/00_PROSJEKTFIL/ # absolute path to project
-PROJ_NAME=purk
-
 
 ## Script it baby!
 echo "Backup started on $HOSTNAME on $TODAY" >> $LOGF
