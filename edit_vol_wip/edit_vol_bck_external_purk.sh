@@ -1,6 +1,6 @@
 #!/bin/bash   
 ## Version 1.5.2	
-# Special Version for purk
+# Special Version for external projects not following our structure
 
 ## command variables
 TAR=/usr/bin/tar
@@ -39,8 +39,10 @@ LOGDIR=~/Library/Logs/
 $MKDIR -p $LOGDIR/editvol_bck # this line creates the directory if it does not exist
 LOGF=$LOGDIR/editvol_bck/edit_vol_bck_$TODAY.log
 EXCLUDE_LIST=~/git/editvol_bck/edit_exclude.txt
-EMAIL_ADRESS=scntech@shortcutoslo.no
-PRK=`mount | $GREP "production" | $AWK '{print substr($3, 10)}'` # specific for purk
+EMAIL_ADRESS=ole@shortcutoslo.no
+SINGLE_VOLS=`mount | $GREP "production" | $AWK '{print substr($3, 10)}'` # specific for purk
+ABSLT_PATH=/Volumes/production/Projects/prk01_tv2_2024/00_PROSJEKTFIL/ # absolute path to project
+PROJ_NAME=purk
 
 
 ## Script it baby!
@@ -62,25 +64,25 @@ echo "" >> $LOGF
 
 # Delete staging copies
 echo "Cleaning up staging area" >> $LOGF
-# $RM -rfv $DEST/$PRK >> $LOGF
+$RM -rfv $DEST/$SINGLE_VOLS"_"$PROJ_NAME >> $LOGF
 echo "" >> $LOGF
 
 
 echo "" >> $LOGF
 echo "List of volumes to be backed up" >> $LOGF
-echo "$PRK" >> $LOGF #List
+echo "$SINGLE_VOLS" >> $LOGF #List
 echo "" >> $LOGF
 
 ## The actual backup
-for VOL in $PRK; do
+for VOL in $SINGLE_VOLS; do
     echo "" >> $LOGF
     echo "backup of $VOL starts now $TODAY..." >> $LOGF
 
     # Create destination folder 
-    $MKDIR -p $DEST/$VOL
+    $MKDIR -p $DEST/$VOL"_"$PROJ_NAME
 
     # tar it off Facilis
-    $TAR --exclude-from $EXCLUDE_LIST -czvf $DEST/$VOL/$STODAY"_"$VOL.tar -C "/Volumes/production/Projects/prk01_tv2_2024/00_PROSJEKTFIL/" . >> $LOGF
+    $TAR --exclude-from $EXCLUDE_LIST -czvf $DEST/$VOL"_"$PROJ_NAME/$STODAY"_"$VOL"_"$PROJ_NAME.tar -C "$ABSLT_PATH" . >> $LOGF
     echo "" >> $LOGF
 
     echo "" >> $LOGF
@@ -103,4 +105,4 @@ echo "Backup is done... " >> $LOGF
 $CAT $LOGF
 
 ## Sending log to email recipients
-## $MUTT -s "Backup $TODAY - log for edit disks" $EMAIL_ADRESS < $LOGF
+$MUTT -s "Backup $TODAY - log for $PROJ_NAME disk" $EMAIL_ADRESS < $LOGF
