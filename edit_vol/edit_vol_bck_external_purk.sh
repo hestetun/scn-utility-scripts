@@ -1,6 +1,7 @@
 #!/bin/bash   
 ## Version 1.5.2	
 # Special Version for external projects not following our structure
+### In order to modify this script to work with different projects, modify the common variables $SINGLE_VOLS, $ABSLT_PATH and $PROJ_NAME.
 
 ## command variables
 TAR=/usr/bin/tar
@@ -29,8 +30,6 @@ else
     exit 1
 fi
 
-# Path to /Volumes/production/Projects/prk01_tv2_2024/00_PROSJEKTFIL/prk01_tv2_2024
-
 ## Common variables
 DEST=/Volumes/temp/_edit_backs
 TODAY="$(date '+%y%m%d_%H%M')"
@@ -39,7 +38,7 @@ LOGDIR=~/Library/Logs/
 $MKDIR -p $LOGDIR/editvol_bck # this line creates the directory if it does not exist
 LOGF=$LOGDIR/editvol_bck/edit_vol_bck_$TODAY.log
 EXCLUDE_LIST=~/git/editvol_bck/edit_exclude.txt
-EMAIL_ADRESS=ole@shortcutoslo.no
+EMAIL_ADRESS=scntech@shortcutoslo.no
 SINGLE_VOLS=`mount | $GREP "production" | $AWK '{print substr($3, 10)}'` # specific for purk
 ABSLT_PATH=/Volumes/production/Projects/prk01_tv2_2024/00_PROSJEKTFIL/ # absolute path to project
 PROJ_NAME=purk
@@ -98,7 +97,7 @@ done
 
 # Sync archives from staging to whiterabbit
 echo "" >> $LOGF
-# $RSYNC -rltvh --stats $DEST/* systeminstaller@scnfile02:/Volumes/whiterabbit/zz_scn_edit_bu/ >> $LOGF
+$RSYNC -rltvh --stats $DEST/* systeminstaller@scnfile02:/Volumes/whiterabbit/zz_scn_edit_bu/ >> $LOGF
 
 echo "" >> $LOGF
 echo "Backup is done... " >> $LOGF
