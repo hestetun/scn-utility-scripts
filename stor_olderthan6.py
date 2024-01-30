@@ -40,12 +40,15 @@ older_than_six_months.sort()
 within_six_months.sort()
 
 # print under headings
-print("\Projects Not Properly Formatted:")
+print("🤠🤠Projects Not Properly Formatted:🤠🤠")
 for directory in not_properly_formatted:
-    print(directory)  
-print("\Projects Older Than 6 Months:")
+    print(directory)
+print("")
+print("🧨🧨Projects Older Than 6 Months:🧨🧨")
 for directory in older_than_six_months:
     print(directory)
-print("\Projects Within Last 6 Months:")
+print("")
+print("🚀🚀Projects Within Last 6 Months:🚀🚀")
 for directory in within_six_months:
     print(directory)
+print("")
