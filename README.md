@@ -13,7 +13,7 @@ Make sure that the naming is done properly on both src volumes.
 
 Python program to convert a DaVinci Resolve timeline .ale to a .csv with some trimmed columns.
 Based on simonwagner's ale2csv.py https://gist.github.com/simonwagner/0ca407314bea9862ce6b15903fdcca87
-Requires 
+Requires the Python module timecode
 
 
 ## Version History
