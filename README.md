@@ -17,7 +17,7 @@ Based on simonwagner's ale2csv.py https://gist.github.com/simonwagner/0ca407314b
 Requires the Python module timecode
 
 Example on how to run
-python3 /Users/oah/git/scn-utility-scripts/utility_ale-to-csv.py /Users/oah/Desktop/DAY_01_20240305_OCF.ale /Users/oah/Desktop/DAY_01_20240305_OCF_parsed1.csv
+`python3 /Users/oah/git/scn-utility-scripts/utility_ale-to-csv.py /Users/oah/Desktop/DAY_01_20240305_OCF.ale /Users/oah/Desktop/DAY_01_20240305_OCF_parsed1.csv`
 
 
 ## Version History
