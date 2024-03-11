@@ -17,7 +17,7 @@ Requires
 
 
 ## Version History
-__Version History will be out of date, and things inside _very_wip and other folders may not be easily visible here.__
+_Version History will be out of date, and things inside _very_wip and other folders may not be easily visible here.__
 * 20231123
     * Initial release of update_commercial_ext-ssd_edit.sh
     * Initial release of new-vfx_wayhome.sh
