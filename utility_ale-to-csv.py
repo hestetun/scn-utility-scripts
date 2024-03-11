@@ -7,6 +7,7 @@ import csv
 import argparse
 
 ## Based on simonwagner's ale2csv.py https://gist.github.com/simonwagner/0ca407314bea9862ce6b15903fdcca87
+## Written by Ole-Andrè Hestetun, using todays great tools.
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument("ale_file", metavar="ALE", type=argparse.FileType(mode="r"))
