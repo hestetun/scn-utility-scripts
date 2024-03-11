@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from collections import OrderedDict
 from itertools import dropwhile
-from os import path, open
+import os
 from timecode import Timecode
 import csv
 import argparse
@@ -10,8 +10,8 @@ import argparse
 ## Written by Ole-Andrè Hestetun, using todays great tools.
 
 argparser = argparse.ArgumentParser()
-argparser.add_argument("ale_file", metavar="ALE", type=argparse.FileType(mode="r"))
-argparser.add_argument("csv_file", metavar="CSV", type=argparse.FileType(mode="w"), nargs="?", default=None)
+argparser.add_argument("ale_file", metavar="ALE", type=str)
+argparser.add_argument("csv_file", metavar="CSV", type=str, nargs="?", default=None)
 
 def calculate_duration_and_frames(row):
     start_time = row.get('Start', 'N/A')
@@ -37,17 +37,30 @@ def calculate_duration_and_frames(row):
 def main():
     args = argparser.parse_args()
 
-    columns, data = convert_ale_to_dict(args.ale_file)
-    args.ale_file.close()
+    if args.ale_file is None or not args.ale_file.endswith('.ale'):
+        print("Error: No input ALE file specified or file is not a .ale file.")
+        return
 
-    if args.csv_file is not None:
-        csv_file = args.csv_file
+    if args.csv_file is None:
+        csv_path = os.path.splitext(args.ale_file)[0] + ".csv"
     else:
-        pre, ext = os.path.splitext(args.ale_file.name)
-        csv_path = pre + ".csv"
-        csv_file = open(csv_path, mode="wb")
+        if not args.csv_file.endswith('.csv'):
+            print("Error: Output file is not a .csv file.")
+            return
+        csv_path = args.csv_file
 
-    dump_csv(csv_file, columns, data)
+    with open(args.ale_file, mode="r") as ale_file:
+        columns, data = convert_ale_to_dict(ale_file)
+
+    if os.path.exists(csv_path):
+        overwrite = input(f"File {csv_path} already exists. Do you want to overwrite it? (y/n): ")
+        if overwrite.lower() != 'y':
+            print("Operation cancelled.")
+            return
+
+    with open(csv_path, mode="w") as csv_file:
+        dump_csv(csv_file, columns, data)
+
     csv_file.close()
 
 
