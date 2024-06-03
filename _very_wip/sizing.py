@@ -12,7 +12,7 @@ def get_directory_size(directory):
                     total += os.path.getsize(fp)
     except OSError as e:
         print(f"Error accessing {directory}: {e}")
-    return total / (1024 ** 4)  # convert size to terabytes
+    return total / (1024 ** 3)  # convert size to gigabytes
 
 # default volume
 default_volume = "/Volumes/commercial_src"
