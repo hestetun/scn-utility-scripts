@@ -1,6 +1,6 @@
 import os
 import datetime
-import shutil
+import subprocess
 
 def get_directory_size(directory):
     total = 0
@@ -100,14 +100,20 @@ print("🚀🚀Projects Within Last 6 Months:🚀🚀")
 for directory, size in within_six_months:
     print(f"{directory}\n-> {round(size)}G")
 
-# get disk usage
-disk_usage = shutil.disk_usage(path_to_directories)
+print("")
+print("Total size:")
 
-# convert sizes to terabytes
-total_space_TB = disk_usage.total / (1024 ** 4)
-used_space_TB = disk_usage.used / (1024 ** 4)
-available_space_TB = total_space_TB - used_space_TB
+# Run the df -h command
+output = subprocess.check_output(['df', '-h'], universal_newlines=True)
 
-# print total size and disk usage
-print(f"\n{round(total_size / (1024), 2)}T used")
-print(f"{round(available_space_TB, 2)}T available")
+# Split the output into lines
+lines = output.split('\n')
+
+# Get the first line (heading) and the line for the volume of interest
+heading = lines[0]
+volume_line = next((line for line in lines if path_to_directories in line), None)
+
+# If the volume line was found, print the heading and the volume line
+if volume_line:
+    print(heading)
+    print(volume_line)
