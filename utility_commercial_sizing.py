@@ -83,9 +83,9 @@ for directory in directories:
         not_properly_formatted.append((directory, get_directory_size(os.path.join(path_to_directories, directory))))
 
 # sort the lists
-not_properly_formatted.sort(key=lambda x: x[0])
-older_than_six_months.sort(key=lambda x: x[0])
-within_six_months.sort(key=lambda x: x[0])
+not_properly_formatted.sort(key=lambda x: x[1])
+older_than_six_months.sort(key=lambda x: x[1])
+within_six_months.sort(key=lambda x: x[1])
 
 # print under headings
 print("🤠🤠Projects Not Properly Formatted:🤠🤠")
