@@ -30,7 +30,10 @@ _Version History will be out of date, and things inside _very_wip and other fold
     * Initial release of edit_vol_bck_external_purk.sh. Backup-script modified to work with projects outside our default structure
  * 20240311
     * Initial release of utility_ale-to-csv.py. Will be updates as needed.
- 
+ * 20240612
+    * Initial release of utility_dockutil_editorial_setup.sh Will be updates as needed.
+    * Updated naming schema across the board. Will be named with utility and different categories as needed.
+    
 ## Authors
 
 Contributors names and contact info
