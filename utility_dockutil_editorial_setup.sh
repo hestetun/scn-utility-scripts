@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# Determine the dockutil path
+if [[ -x "/opt/homebrew/bin/dockutil" ]]; then
+    CMD_DOCKUTIL="/opt/homebrew/bin/dockutil"
+elif [[ -x "/usr/local/bin/dockutil" ]]; then
+    CMD_DOCKUTIL="/usr/local/bin/dockutil"
+else
+    echo "dockutil not found. Please install dockutil and try again."
+    exit 1
+fi
+
 # Get the currently logged-in user
 current_user=$(whoami)
 
@@ -9,7 +19,7 @@ add_to_dock() {
   local app_name=$2
   if [[ -d "$app_path" ]]; then
     echo "Adding $app_name to the Dock."
-    dockutil --add "$app_path" --no-restart
+    $CMD_DOCKUTIL --add "$app_path" --no-restart
   else
     echo "$app_name is not installed."
   fi
@@ -20,13 +30,13 @@ add_optional_to_dock() {
   local app_path=$1
   if [[ -d "$app_path" ]]; then
     echo "Adding optional app $(basename "$app_path") to the Dock."
-    dockutil --add "$app_path" --no-restart
+    $CMD_DOCKUTIL --add "$app_path" --no-restart
   fi
 }
 
 # Clear out the Dock
 echo "Clearing the Dock."
-dockutil --remove all --no-restart
+$CMD_DOCKUTIL --remove all --no-restart
 
 # Add important applications to the Dock
 
