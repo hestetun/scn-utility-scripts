@@ -21,7 +21,7 @@ $MKDIR -p $LOGDIR/editvol_bck # this line creates the directory if it does not e
 LOGF=$LOGDIR/editvol_bck/tr_edit_vol_bck_$TODAY.log
 EXCLUDE_LIST=~/git/scn-utility-scripts/tr_edit_exclude.txt
 EMAIL_ADRESS=scntech@shortcutoslo.no
-VOLS=$(TR_PROJECT)
+VOLS="TR_PROJECT"
 
 ## Script it baby!
 echo "Backup started on $HOSTNAME on $TODAY" >> $LOGF
