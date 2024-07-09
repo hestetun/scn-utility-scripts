@@ -55,7 +55,7 @@ for VOL in $VOLS; do
     $MKDIR -p $DEST/$VOL
 
     # tar it off Facilis
-    $TAR --exclude-from $EXCLUDE_LIST -czvf $DEST/$VOL/$STODAY"_"$VOL.tar -C "/Volumes/$VOL/editorial/project/" . >> $LOGF
+    $TAR --exclude-from $EXCLUDE_LIST -czvf $DEST/$VOL/$TODAY"_"$VOL.tar -C "/Volumes/$VOL/editorial/project/" . >> $LOGF
 
     echo "" >> $LOGF
 
