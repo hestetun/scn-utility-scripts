@@ -11,6 +11,16 @@ MKDIR=/bin/mkdir
 GREP=/usr/bin/grep
 SORT=/usr/bin/sort
 
+# Check for mutt in both possible locations
+if [[ -f /opt/homebrew/bin/mutt ]]; then
+    MUTT=/opt/homebrew/bin/mutt
+elif [[ -f /usr/local/bin/mutt ]]; then
+    MUTT=/usr/local/bin/mutt
+else
+    echo "mutt not found!" >> $LOGF
+    exit 1
+fi
+
 
 ## Common variables
 DEST=/Volumes/temp/_edit_backs
@@ -37,6 +47,13 @@ do
       exit 1
    fi
 done
+
+# Additional check for MUTT due to its conditional assignment
+echo "Checking if $MUTT exists and is executable..." >> $LOGF
+if ! [ -x "$(command -v $MUTT)" ]; then
+    echo "Error: MUTT is not installed." >> $LOGF
+    exit 1
+fi
 
 echo "Self-check passed. All necessary commands are installed." >> $LOGF
 echo "" >> $LOGF
