@@ -1,12 +1,11 @@
-## Version 2.0
+## Version 2.1
 echo "######################################"
 echo "#    Download from SPOTIFY           #"
 echo "#                                    #"
 echo "# paste link here and press enter :) #"
 echo "######################################"
 read link
-spotdl "$link" --format m4a --output ~/Downloads/
-
+spotdl "$link" --format wav --output ~/Downloads/ --restrict ascii
 
 # error "Message"
 function pornhub() {
@@ -19,4 +18,3 @@ EOT
 }
 
 pornhub "$link was downloaded to your box of treasures!!!"
-
