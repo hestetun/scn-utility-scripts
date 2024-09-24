@@ -6,7 +6,7 @@ VOLUME2=/Volumes/scn_ftr_05/scn_ftr_05/kvitebjorn
 DESTINATION=/Volumes/resolve_cache
 
 # Define excluded directories
-EXCLUDE_DIRS="--exclude=master --exclude=tmp --exclude=.DS_Store"
+EXCLUDE_DIRS="--exclude=master --exclude=tmp --exclude=.DS_Store --exclude=_reference --exclude=audio"
 
 # SSH user and host
 SSH_USER=systeminstaller
@@ -18,10 +18,23 @@ STODAY="$(date '+%y%m%d')"
 LOGDIR=~/Library/Logs/
 mkdir -p $LOGDIR/biancasync
 
+# Set the log file path with the short volume name (placeholder until choice is made)
+LOGF=$LOGDIR/biancasync/biancasync_$TODAY.log
+
 # Function to log messages
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOGF"
 }
+
+# Check for necessary commands
+if [[ -f /opt/homebrew/bin/rsync ]]; then
+    RSYNC=/opt/homebrew/bin/rsync
+elif [[ -f /usr/local/bin/rsync ]]; then
+    RSYNC=/usr/local/bin/rsync
+else
+    log "rsync not found!"
+    exit 1
+fi
 
 # Helper function to print usage
 usage() {
@@ -54,7 +67,7 @@ case "$choice" in
         ;;
 esac
 
-# Set the log file path with the short volume name
+# Update the log file path with the project name
 LOGF=$LOGDIR/biancasync/biancasync_${PROJ}_$TODAY.log
 
 # Check if the volumes are mounted on the remote SSH device
@@ -69,7 +82,7 @@ mkdir -p "$DESTINATION/$PROJ"
 
 # Perform the rsync operation
 log "Starting sync for $PROJ..."
-rsync -rltvh --stats --progress --info=progress2 $EXCLUDE_DIRS -e ssh "$SSH_USER@$SSH_HOST:$SRC" "$DESTINATION/$PROJ" | tee -a "$LOGF"
+$RSYNC -rltvh --stats --progress --info=progress2 $EXCLUDE_DIRS -e ssh "$SSH_USER@$SSH_HOST:$SRC" "$DESTINATION/$PROJ" | tee -a "$LOGF"
 
 if [ $? -eq 0 ]; then
     log "Syncing completed successfully."
