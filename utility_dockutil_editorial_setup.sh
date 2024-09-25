@@ -1,80 +1,103 @@
 #!/bin/bash
 
-# Define your volumes
-VOLUME1=/Volumes/scn_ftr_01/scn_ftr_01/askepote
-VOLUME2=/Volumes/scn_ftr_05/scn_ftr_05/kvitebjorn
-DESTINATION=/Volumes/resolve_cache
-
-# Define excluded directories
-EXCLUDE_DIRS="--exclude=master --exclude=tmp --exclude=.DS_Store"
-
-# SSH user and host
-SSH_USER=systeminstaller
-SSH_HOST=scnfile02
-
-# Get current date and time for logs
-TODAY="$(date '+%y%m%d_%H%M')"
-STODAY="$(date '+%y%m%d')"
-LOGDIR=~/Library/Logs/
-mkdir -p $LOGDIR/biancasync
-
-# Function to log messages
-log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOGF"
-}
-
-# Helper function to print usage
-usage() {
-    echo "Usage: $0 [a|k]"
-    echo "  a - Sync Askepote"
-    echo "  k - Sync Kvitebjorn"
-    exit 1
-}
-
-# Check for command-line arguments or prompt user input
-if [ $# -gt 0 ]; then
-    choice=$1
+# Determine the dockutil path
+if [[ -x "/opt/homebrew/bin/dockutil" ]]; then
+    CMD_DOCKUTIL="/opt/homebrew/bin/dockutil"
+elif [[ -x "/usr/local/bin/dockutil" ]]; then
+    CMD_DOCKUTIL="/usr/local/bin/dockutil"
 else
-    read -p "Do you want to copy Askepote (a) or Kvitebjorn (k)? " choice
-fi
-
-# Validate and set up project variables based on user choice
-case "$choice" in
-    a)
-        PROJ="askepote"
-        SRC=$VOLUME1
-        ;;
-    k)
-        PROJ="kvitebjorn"
-        SRC=$VOLUME2
-        ;;
-    *)
-        echo "Invalid choice!"
-        usage
-        ;;
-esac
-
-# Set the log file path with the short volume name
-LOGF=$LOGDIR/biancasync/biancasync_${PROJ}_$TODAY.log
-
-# Check if the volumes are mounted on the remote SSH device
-if ! ssh "$SSH_USER@$SSH_HOST" "[ -f $SRC/_${PROJ}.txt ]"; then
-    log "${SRC} not mounted on remote device!"
-    log "Exiting with error."
+    echo "dockutil not found. Please install dockutil and try again."
     exit 1
 fi
 
-# Create destination directory if it doesn't exist
-mkdir -p "$DESTINATION/$PROJ"
+# Get the currently logged-in user
+current_user=$(whoami)
 
-# Perform the rsync operation
-log "Starting sync for $PROJ..."
-rsync -rltvh --stats --progress --info=progress2 $EXCLUDE_DIRS -e ssh "$SSH_USER@$SSH_HOST:$SRC" "$DESTINATION/$PROJ" | tee -a "$LOGF"
+# Function to add application to Dock if it exists
+add_to_dock() {
+  local app_path=$1
+  local app_name=$2
+  if [[ -d "$app_path" ]]; then
+    echo "Adding $app_name to the Dock."
+    $CMD_DOCKUTIL --add "$app_path" --no-restart
+  else
+    echo "$app_name is not installed."
+  fi
+}
 
-if [ $? -eq 0 ]; then
-    log "Syncing completed successfully."
-else
-    log "Syncing encountered errors."
+# Function to add optional application to Dock if it exists (no error message)
+add_optional_to_dock() {
+  local app_path=$1
+  if [[ -d "$app_path" ]]; then
+    echo "Adding optional app $(basename "$app_path") to the Dock."
+    $CMD_DOCKUTIL --add "$app_path" --no-restart
+  fi
+}
+
+# Clear out the Dock
+echo "Clearing the Dock."
+$CMD_DOCKUTIL --remove all --no-restart
+
+# Add important applications to the Dock
+
+# Google Chrome
+if [[ -d "/Users/$current_user/Applications/Google Chrome.app" ]]; then
+  add_to_dock "/Users/$current_user/Applications/Google Chrome.app" "Google Chrome"
+elif [[ -d "/Applications/Google Chrome.app" ]]; then
+  add_to_dock "/Applications/Google Chrome.app" "Google Chrome"
 fi
 
-exit 0
+# Safari
+add_to_dock "/Applications/Safari.app" "Safari"
+
+# Calendar
+add_to_dock "/System/Applications/Calendar.app" "Calendar"
+
+# Notes
+add_to_dock "/System/Applications/Notes.app" "Notes"
+
+# System Settings
+add_to_dock "/System/Applications/System Settings.app" "System Settings"
+
+# Add optional applications to the Dock
+
+# Facilis Hub Client Console
+add_optional_to_dock "/Applications/Facilis Hub Client Console.app"
+
+# Avid Media Composer
+add_optional_to_dock "/Applications/Avid Media Composer/AvidMediaComposer.app"
+
+# Adobe Premiere Pro (check for the latest version)
+latest_premiere_pro=""
+latest_premiere_pro_year=0
+for app_path in /Applications/Adobe\ Premiere\ Pro\ */Adobe\ Premiere\ Pro\ *.app; do
+  app_name=$(basename "$app_path")
+  if [[ "$app_name" =~ Adobe\ Premiere\ Pro\ ([0-9]{4})\.app$ ]]; then
+    year=${BASH_REMATCH[1]}
+    if (( year > latest_premiere_pro_year )); then
+      latest_premiere_pro="$app_path"
+      latest_premiere_pro_year=$year
+    fi
+  fi
+done
+
+if [[ -n "$latest_premiere_pro" ]]; then
+  add_optional_to_dock "$latest_premiere_pro"
+fi
+
+# DaVinci Resolve
+add_optional_to_dock "/Applications/DaVinci Resolve/DaVinci Resolve.app"
+
+# Blackmagic Fusion
+add_optional_to_dock "/Applications/Blackmagic Fusion 18/Fusion.app"
+
+# Soundly
+add_optional_to_dock "/Applications/Soundly.app"
+
+# Shutter Encoder
+add_optional_to_dock "/Applications/Shutter Encoder.app"
+
+# Restart the Dock to apply changes
+killall Dock
+
+echo "Dock setup completed."
