@@ -11,17 +11,6 @@ MKDIR=/bin/mkdir
 GREP=/usr/bin/grep
 SORT=/usr/bin/sort
 
-# Check for mutt in both possible locations
-if [[ -f /opt/homebrew/bin/mutt ]]; then
-    MUTT=/opt/homebrew/bin/mutt
-elif [[ -f /usr/local/bin/mutt ]]; then
-    MUTT=/usr/local/bin/mutt
-else
-    echo "mutt not found!" >> $LOGF
-    exit 1
-fi
-
-
 ## Common variables
 DEST=/Volumes/temp/_edit_backs
 TODAY="$(date '+%y%m%d_%H%M')"
