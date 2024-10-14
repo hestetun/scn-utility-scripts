@@ -91,11 +91,17 @@ add_optional_to_dock "/Applications/DaVinci Resolve/DaVinci Resolve.app"
 # Blackmagic Fusion
 add_optional_to_dock "/Applications/Blackmagic Fusion 18/Fusion.app"
 
+# Pro Tools
+add_optional_to_dock "'/Applications/Pro Tools.app'"
+
 # Soundly
 add_optional_to_dock "/Applications/Soundly.app"
 
 # Shutter Encoder
 add_optional_to_dock "/Applications/Shutter Encoder.app"
+
+# Virus Scanner Plus
+add_optional_to_dock "/Applications/VirusScannerPlus.app"
 
 # Restart the Dock to apply changes
 killall Dock
