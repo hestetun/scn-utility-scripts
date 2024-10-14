@@ -92,7 +92,7 @@ add_optional_to_dock "/Applications/DaVinci Resolve/DaVinci Resolve.app"
 add_optional_to_dock "/Applications/Blackmagic Fusion 18/Fusion.app"
 
 # Pro Tools
-add_optional_to_dock "'/Applications/Pro Tools.app'"
+add_optional_to_dock "/Applications/Pro Tools.app"
 
 # Soundly
 add_optional_to_dock "/Applications/Soundly.app"
