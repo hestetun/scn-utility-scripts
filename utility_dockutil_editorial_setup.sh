@@ -48,7 +48,7 @@ elif [[ -d "/Applications/Google Chrome.app" ]]; then
 fi
 
 # Safari
-add_to_dock "/Applications/Safari.app" "Safari"
+# add_to_dock "/Applications/Safari.app" "Safari"
 
 # Calendar
 add_to_dock "/System/Applications/Calendar.app" "Calendar"
@@ -90,6 +90,26 @@ add_optional_to_dock "/Applications/DaVinci Resolve/DaVinci Resolve.app"
 
 # Blackmagic Fusion
 add_optional_to_dock "/Applications/Blackmagic Fusion 18/Fusion.app"
+
+# Find latest Flame version
+latest_flame=""
+latest_flame_version=0
+for app_path in /Applications/Autodesk/Flame\ 202[0-9]*\ Update.app; do
+  app_name=$(basename "$app_path")
+  if [[ "$app_name" =~ Flame\ ([0-9.]+)\ Update\.app$ ]]; then
+    version=${BASH_REMATCH[1]}
+    version_num=$(echo "$version" | tr -d '.')
+    if (( version_num > latest_flame_version )); then
+      latest_flame="$app_path"
+      latest_flame_version=$version_num
+    fi
+  fi
+done
+
+# Autodesk Flame
+if [[ -n "$latest_flame" ]]; then
+  add_optional_to_dock "$latest_flame"
+fi
 
 # Pro Tools
 add_optional_to_dock "/Applications/Pro Tools.app"

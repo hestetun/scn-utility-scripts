@@ -8,4 +8,4 @@ echo "# paste link here and press enter :) #"
 echo "######################################"
 mkdir -p ~/Downloads/$TODAY
 read link
-spotdl "$link" --format wav --output ~/Downloads/$TODAY --restrict ascii
+uvx spotdl "$link" --format wav --output ~/Downloads/$TODAY --restrict ascii
