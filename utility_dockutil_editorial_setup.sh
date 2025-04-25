@@ -68,7 +68,7 @@ add_optional_to_dock "/Applications/Facilis Hub Client Console.app"
 add_optional_to_dock "/Applications/Avid Media Composer/AvidMediaComposer.app"
 
 # Avid Pro Tools
-add_optional_to_dock "/Applications/Pro Tools.app
+add_optional_to_dock "/Applications/Pro Tools.app"
 
 # Adobe Premiere Pro (check for the latest version)
 latest_premiere_pro=""
