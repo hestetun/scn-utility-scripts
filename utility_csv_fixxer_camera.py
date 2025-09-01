@@ -76,5 +76,5 @@ def update_camera_metadata(csv_path, max_workers=10):
     print(f"\nUpdated CSV saved to {output_path}")
 
 # Example usage
-csv_path = '/Users/oah/Desktop/facingwar_mm/facingwar_ftr_acescct_2160p25_base_wip001 385 Clips Metadata.csv'
+csv_path = '/Users/oah/Desktop/facingwar_mm/facingwar_e01_pl01_acescct_709g24_2160p25_250626_grade_v001 129 Clips Metadata.csv'
 update_camera_metadata(csv_path)
