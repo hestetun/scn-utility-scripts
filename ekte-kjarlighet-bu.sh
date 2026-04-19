@@ -1,7 +1,4 @@
 #!/bin/bash
-
-## utilizing the fcp binary, delivered by Facilis.
-
 # Get the timestamp for the log
 echo "--- Backup started at $(date) ---"
 
@@ -14,6 +11,7 @@ fi
 
 # Run the fcp command
 # Using absolute paths is safer for scheduled tasks
-/Users/fante/facilis/fcp "/Volumes/ekte-kjarlighet_edit/Avid MediaFiles" -r
+/Users/fante/facilis/fcp -q "/Volumes/ekte-kjarlighet_edit/Avid MediaFiles" -r
 
 echo "--- Backup finished at $(date) ---"
+
