@@ -1,0 +1,57 @@
+# Facilis Backup Exclude List
+# Add file/folder patterns to exclude from backup
+# Patterns are relative to each volume root
+
+*.rar
+.DS_Store*
+.DocumentRevisions-V100
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.fseventsd
+TheVolumeSettingsFolder
+.gobbler
+*SLETT*
+*Slett*
+*slett*
+*KAST*
+*.tmp
+.*/lost\+found/.*
+.manquota
+*WaveformCache*
+*SearchData*
+*Video\ Previews
+*Audio\ Previews
+*Captured*
+HARD*
+*/AvidSharedData/*
+*/AvidSharedData/*/Statistics/Statistics.*
+*/Statistics/Statistics.*
+Statistics.*
+*.prlock
+*.lck
+*.awf
+*.pat
+*.cfa
+*.download
+_source
+plates
+
+## in honor to pas
+*_old
+*zzold
+*zz_old
+*z_old
+*zold
+tmp*
+TMP
+grids
+GRIDS
+*.zip
+*.tar
+*.rar
+*preview*
+*Preview*
+galstills
+*galstills*
+*.log
