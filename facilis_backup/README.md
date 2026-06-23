@@ -81,8 +81,6 @@ Edit `facilis_backup_exclude.txt`. Patterns are relative to each source volume r
 
 - `BACKUP_DEST`: backup destination path
 - `DRY_RUN`: set to `1` for rsync dry-run mode
-- `EMAIL_TO`: optional recipient for end-of-run log email
-- `EMAIL_SUBJECT_PREFIX`: optional subject prefix (default: `Facilis backup report`)
 
 ## LaunchAgent Setup
 
@@ -113,36 +111,6 @@ Schedule is set with `StartCalendarInterval` to run daily at `00:30`.
 - Script logs to stdout/stderr
 - LaunchAgent writes logs to `/Users/oah/Library/Logs/com.scn.facilis-backup/facilis_backup.log`
 - Log levels: `INFO`, `WARN`, `ERROR`
-
-## Email Reports (Optional)
-
-The script can email the per-run log after completion using native utilities:
-
-- `mail` (preferred)
-- `sendmail` (fallback)
-
-Enable for one manual run:
-
-```bash
-EMAIL_TO="you@example.com" ./facilis_backup.sh
-```
-
-Enable in LaunchAgent by adding environment variables under `EnvironmentVariables` in `com.scn.facilis-backup.plist`:
-
-```xml
-<key>EnvironmentVariables</key>
-<dict>
-  <key>EMAIL_TO</key>
-  <string>you@example.com</string>
-  <key>EMAIL_SUBJECT_PREFIX</key>
-  <string>Facilis backup nightly</string>
-</dict>
-```
-
-Notes:
-
-- If `EMAIL_TO` is empty, no email is sent.
-- If neither `mail` nor `sendmail` is available, backup continues and a warning is logged.
 
 ## Troubleshooting
 

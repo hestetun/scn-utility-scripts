@@ -11,6 +11,7 @@
 .fseventsd
 TheVolumeSettingsFolder
 .gobbler
+.smb*
 *SLETT*
 *Slett*
 *slett*
@@ -34,8 +35,14 @@ Statistics.*
 *.pat
 *.cfa
 *.download
-_source
-plates
+## _source
+## plates
+
+## aspera and filemail partial download files
+*.fmdownload
+*.partial
+*.aspera-ckpt
+
 
 ## in honor to pas
 *_old
@@ -43,15 +50,12 @@ plates
 *zz_old
 *z_old
 *zold
-tmp*
+## tmp*
 TMP
 grids
 GRIDS
 *.zip
 *.tar
-*.rar
 *preview*
 *Preview*
-galstills
-*galstills*
 *.log

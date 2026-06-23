@@ -5,28 +5,19 @@
 	<key>Label</key>
 	<string>com.scn.facilis-backup</string>
 	<key>Program</key>
-	<string>/Users/oah/git/scn-utility-scripts/facilis_backup/facilis_backup.sh</string>
+	<string>/Users/systeminstaller/scripts/facilis_backup/facilis_backup.sh</string>
 	<key>RunAtLoad</key>
 	<false/>
 	<key>StandardOutPath</key>
-	<string>/Users/oah/Library/Logs/com.scn.facilis-backup/facilis_backup.log</string>
+	<string>/Users/systeminstaller/Library/Logs/com.scn.facilis-backup/facilis_backup.log</string>
 	<key>StandardErrorPath</key>
-	<string>/Users/oah/Library/Logs/com.scn.facilis-backup/facilis_backup.log</string>
+	<string>/Users/systeminstaller/Library/Logs/com.scn.facilis-backup/facilis_backup.log</string>
 	<key>StartCalendarInterval</key>
 	<dict>
 		<key>Hour</key>
 		<integer>0</integer>
 		<key>Minute</key>
 		<integer>30</integer>
-	</dict>
-	<key>EnvironmentVariables</key>
-	<dict>
-		<key>EMAIL_TO</key>
-		<string>scntech@shortcutoslo.no</string>
-		<key>EMAIL_SUBJECT_PREFIX</key>
-		<string>Facilis backup nightly</string>
-		<key>PATH</key>
-		<string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
 	</dict>
 </dict>
 </plist>
