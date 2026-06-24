@@ -20,6 +20,7 @@ DEBUG_RSYNC="0"
 DEBUG_LOG_FILE=""
 RUN_LOG_FILE=""
 STOP_REQUESTED="0"
+backup_errors=0
 FCCMD_BIN=""
 RSYNC_BIN=""
 MAIL_BIN=""
@@ -246,7 +247,7 @@ EOF
     local run_start_epoch
     local run_start_human
     local host_name
-    local backup_errors=0
+    backup_errors=0
     local total_transferred_bytes=0
 
     RUN_LOG_FILE=$(mktemp -t facilis_backup_run.XXXX.log)
@@ -326,6 +327,13 @@ EOF
     if [[ -f "$EXCLUDE_FILE" ]]; then
         exclude_opts="--exclude-from=$EXCLUDE_FILE"
         log "INFO" "Using exclude list: $EXCLUDE_FILE"
+    fi
+
+    local -a rsync_args=()
+    read -r -a rsync_args <<< "$RSYNC_OPTS"
+    rsync_args+=(--stats)
+    if [[ -n "$exclude_opts" ]]; then
+        rsync_args+=("$exclude_opts")
     fi
 
     log_section "General information"
@@ -409,19 +417,13 @@ EOF
             local rsync_exit_code=0
 
             if [[ "$DEBUG_RSYNC" == "1" ]]; then
-                local rsync_tmp_log
-                rsync_tmp_log=$(mktemp -t facilis_rsync.XXXX.log)
-
-                if "$RSYNC_BIN" $RSYNC_OPTS --stats $exclude_opts "$volume/" "$backup_path/" 2>&1 | tee "$rsync_tmp_log" | tee -a "$DEBUG_LOG_FILE"; then
+                if rsync_output=$("$RSYNC_BIN" "${rsync_args[@]}" "$volume/" "$backup_path/" 2>&1 | tee -a "$DEBUG_LOG_FILE"); then
                     rsync_exit_code=0
                 else
                     rsync_exit_code=$?
                 fi
-
-                rsync_output=$(cat "$rsync_tmp_log")
-                rm -f "$rsync_tmp_log"
             else
-                if rsync_output=$("$RSYNC_BIN" $RSYNC_OPTS --stats $exclude_opts "$volume/" "$backup_path/" 2>&1); then
+                if rsync_output=$("$RSYNC_BIN" "${rsync_args[@]}" "$volume/" "$backup_path/" 2>&1); then
                     rsync_exit_code=0
                 else
                     rsync_exit_code=$?

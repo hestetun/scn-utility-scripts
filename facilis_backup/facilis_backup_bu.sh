@@ -2,21 +2,10 @@
 
 ##############################################################################
 # Facilis Flash Storage Backup Script
-# Purpose: Backup all volumes from Facilis flash using rsync
+# Purpose: Backup all volumes from Facilis flash using rsync (Homebrew only)
 # Uses: fccmd list_mounts to detect mounted volumes
 # Logging: Managed via launch agent
 ##############################################################################
-
-## TO DO
-## Add possibility for debug, seeing rsync progress
-## test email functionality
-## Special handling requirements:
-## - *_edit volumes: skip
-## - scn_commercial: allow a custom backup directory
-## - wbd_promo: allow a custom backup directory
-## Permission hardening requirement:
-## - defer full chmod until backups are confirmed stable
-
 
 set -euo pipefail
 
@@ -31,10 +20,11 @@ DEBUG_RSYNC="0"
 DEBUG_LOG_FILE=""
 RUN_LOG_FILE=""
 STOP_REQUESTED="0"
+backup_errors=0
 FCCMD_BIN=""
 RSYNC_BIN=""
 MAIL_BIN=""
-SENDMAIL_BIN=""
+
 # Edit these here if the special volumes should land somewhere else.
 SCN_COMMERCIAL_BACKUP_DIR="/Volumes/whiterabbit/zz_scn_commercial_archive"
 WBD_PROMO_BACKUP_DIR="/Volumes/whiterabbit/zz_wbd"
@@ -89,22 +79,7 @@ send_email_report() {
         return
     fi
 
-    if [[ -n "$SENDMAIL_BIN" ]]; then
-        if {
-            echo "To: $EMAIL_TO"
-            echo "Subject: $subject"
-            echo "Content-Type: text/plain; charset=UTF-8"
-            echo
-            cat "$RUN_LOG_FILE"
-        } | "$SENDMAIL_BIN" -t; then
-            log "INFO" "Email report sent to: $EMAIL_TO"
-            return
-        fi
-        log "WARN" "sendmail command failed for: $EMAIL_TO"
-        return
-    fi
-
-    log "WARN" "EMAIL_TO is set, but no native mail utility (mail/sendmail) was found. Skipping email report."
+    log "WARN" "EMAIL_TO is set, but the native mail utility was not found. Skipping email report."
 }
 
 error_exit() {
@@ -186,18 +161,6 @@ get_volume_backup_path() {
     esac
 }
 
-apply_read_only_permissions() {
-    local target_path="$1"
-
-    if [[ "$DRY_RUN" == "1" ]]; then
-        log "INFO" "Dry-run mode: skipping permission hardening for $target_path"
-        return 0
-    fi
-
-    find "$target_path" -type d -exec chmod 755 {} +
-    find "$target_path" -type f -exec chmod 644 {} +
-}
-
 resolve_command() {
     local command_name="$1"
     shift
@@ -238,7 +201,6 @@ validate_destination_paths() {
             continue
         fi
 
-        # Check if parent directory is writable (we'll create the final dir later)
         local parent_dir
         parent_dir="$(dirname "$dest_path")"
 
@@ -273,9 +235,6 @@ Usage: facilis_backup.sh [--debug]
 Options:
     --debug         Print full raw rsync output to stdout for each volume
   -h, --help      Show this help message
-
-Environment:
-    Special volume destinations are defined in the script configuration above.
 EOF
                 return 0
                 ;;
@@ -288,15 +247,20 @@ EOF
     local run_start_epoch
     local run_start_human
     local host_name
-    local backup_errors=0
+    backup_errors=0
     local total_transferred_bytes=0
 
     RUN_LOG_FILE=$(mktemp -t facilis_backup_run.XXXX.log)
+    
+    # Global trap catches exits anywhere in main and sends the report
     trap '
-        if [[ $? -eq 0 ]]; then 
+        exit_code=$?
+        if [[ $exit_code -eq 0 && "$backup_errors" -eq 0 ]]; then 
             send_email_report "SUCCESS"; 
+        elif [[ $exit_code -eq 0 && "$backup_errors" -eq 1 ]]; then
+            send_email_report "PARTIAL FAILURE";
         else 
-            send_email_report "FAILED/INTERRUPTED"; 
+            send_email_report "CRASHED/INTERRUPTED (Code $exit_code)"; 
         fi; 
         [[ -n "${RUN_LOG_FILE:-}" && -f "$RUN_LOG_FILE" ]] && rm -f "$RUN_LOG_FILE"
     ' EXIT
@@ -309,12 +273,7 @@ EOF
     log_section "Backup session"
     log "INFO" "Host: $host_name"
     log "INFO" "Started: $run_start_human"
-
     log "INFO" "Starting Facilis backup process"
-    log "INFO" "No emojis, humans or AI-vibecoders have been hurt during the making of this script"
-
-
-## Add the dry-run to rsync, use a tmp variable for this!
 
     if [[ "$DRY_RUN" == "1" ]]; then
         RSYNC_OPTS+=" -n"
@@ -328,23 +287,21 @@ EOF
         log "INFO" "Debug log file: $DEBUG_LOG_FILE"
     fi
 
-    if ! RSYNC_BIN=$(resolve_command rsync /usr/bin/rsync /usr/local/bin/rsync); then
-        error_exit "rsync command not found. Is rsync installed?"
+    # Strictly find Homebrew rsync path (skips /usr/bin/rsync built-in)
+    if ! RSYNC_BIN=$(resolve_command /opt/homebrew/bin/rsync /usr/local/bin/rsync); then
+        error_exit "Homebrew rsync not found at /opt/homebrew/bin/rsync or /usr/local/bin/rsync. Aborting."
     fi
+    log "INFO" "Using Homebrew rsync binary: $RSYNC_BIN"
+
     if ! MAIL_BIN=$(resolve_command mail /usr/bin/mail); then
         MAIL_BIN=""
     fi
-    if ! SENDMAIL_BIN=$(resolve_command sendmail /usr/sbin/sendmail); then
-        SENDMAIL_BIN=""
-    fi
     
-    # Get list of mounted Facilis volumes
     if ! FCCMD_BIN=$(resolve_command fccmd /usr/local/bin/fccmd); then
         error_exit "fccmd command not found. Is Facilis software installed?"
     fi
     log "INFO" "Using fccmd binary: $FCCMD_BIN"
 
-    # Validate all destination paths before attempting backup
     validate_destination_paths
     
     log "INFO" "Detecting Facilis mounted volumes..."
@@ -366,11 +323,17 @@ EOF
         return 0
     fi
     
-    # Build rsync exclude options
     local exclude_opts=""
     if [[ -f "$EXCLUDE_FILE" ]]; then
         exclude_opts="--exclude-from=$EXCLUDE_FILE"
         log "INFO" "Using exclude list: $EXCLUDE_FILE"
+    fi
+
+    local -a rsync_args=()
+    read -r -a rsync_args <<< "$RSYNC_OPTS"
+    rsync_args+=(--stats)
+    if [[ -n "$exclude_opts" ]]; then
+        rsync_args+=("$exclude_opts")
     fi
 
     log_section "General information"
@@ -417,7 +380,6 @@ EOF
         fi
     done <<< "$mounts"
     
-    # Backup each volume and collect a human-readable summary.
     local backed_up_summary=""
     while IFS='|' read -r volume volume_name volume_capacity volume_available; do
         if [[ "$STOP_REQUESTED" == "1" ]]; then
@@ -451,24 +413,17 @@ EOF
         log "INFO" "Backup path for $volume_name: $backup_path"
 
         if mkdir -p "$backup_path"; then
-            # Run rsync with error handling
             local rsync_output
             local rsync_exit_code=0
 
             if [[ "$DEBUG_RSYNC" == "1" ]]; then
-                local rsync_tmp_log
-                rsync_tmp_log=$(mktemp -t facilis_rsync.XXXX.log)
-
-                if "$RSYNC_BIN" $RSYNC_OPTS --stats $exclude_opts "$volume/" "$backup_path/" 2>&1 | tee "$rsync_tmp_log" | tee -a "$DEBUG_LOG_FILE"; then
+                if rsync_output=$("$RSYNC_BIN" "${rsync_args[@]}" "$volume/" "$backup_path/" 2>&1 | tee -a "$DEBUG_LOG_FILE"); then
                     rsync_exit_code=0
                 else
                     rsync_exit_code=$?
                 fi
-
-                rsync_output=$(cat "$rsync_tmp_log")
-                rm -f "$rsync_tmp_log"
             else
-                if rsync_output=$("$RSYNC_BIN" $RSYNC_OPTS --stats $exclude_opts "$volume/" "$backup_path/" 2>&1); then
+                if rsync_output=$("$RSYNC_BIN" "${rsync_args[@]}" "$volume/" "$backup_path/" 2>&1); then
                     rsync_exit_code=0
                 else
                     rsync_exit_code=$?
@@ -548,12 +503,6 @@ EOF
         log "WARN" "Backup was interrupted before completion."
         return 130
     fi
-
-#    if [[ "$backup_errors" -eq 0 ]]; then
-#        send_email_report "SUCCESS"
-#    else
-#        send_email_report "PARTIAL"
-#    fi
 }
 
 ##############################################################################
