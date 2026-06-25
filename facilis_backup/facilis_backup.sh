@@ -550,7 +550,6 @@ EOF
 
                     backup_job_pids=("${remaining_pids[@]}")
                     backup_job_result_files=("${remaining_result_files[@]}")
-                    log "INFO" "Active rsync jobs remaining: ${#backup_job_pids[@]}"
                     return 0
                 fi
             done
@@ -583,8 +582,6 @@ EOF
             log "INFO" "Skipping volume by rule: $volume_name"
             continue
         fi
-
-        log "INFO" "Backup path for $volume_name: $backup_path"
 
         while [[ ${#backup_job_pids[@]} -ge $MAX_PARALLEL_RSYNC ]]; do
             collect_backup_job_result "${backup_job_pids[0]}" "${backup_job_result_files[0]}"

@@ -452,7 +452,6 @@ EOF
     log_backup_destination_space
     log "INFO" ""
     log "INFO" "Volumes to be backed up:"
-    log "INFO" "Concurrent rsync jobs: $MAX_PARALLEL_RSYNC"
     while IFS='|' read -r _ volume_name volume_capacity volume_available; do
         if [[ "$STOP_REQUESTED" == "1" ]]; then
             log "WARN" "Stopping before the next volume because exit was requested."
@@ -550,7 +549,6 @@ EOF
 
                     backup_job_pids=("${remaining_pids[@]}")
                     backup_job_result_files=("${remaining_result_files[@]}")
-                    log "INFO" "Active rsync jobs remaining: ${#backup_job_pids[@]}"
                     return 0
                 fi
             done
@@ -583,8 +581,6 @@ EOF
             log "INFO" "Skipping volume by rule: $volume_name"
             continue
         fi
-
-        log "INFO" "Backup path for $volume_name: $backup_path"
 
         while [[ ${#backup_job_pids[@]} -ge $MAX_PARALLEL_RSYNC ]]; do
             collect_backup_job_result "${backup_job_pids[0]}" "${backup_job_result_files[0]}"
