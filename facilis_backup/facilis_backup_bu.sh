@@ -13,12 +13,14 @@ set -euo pipefail
 BACKUP_DESTINATION="${BACKUP_DEST:-/Volumes/blackhole/facilis_backup}"
 EXCLUDE_FILE="$(dirname "$0")/facilis_backup_exclude.txt"
 RSYNC_OPTS="-avW --inplace --progress"
+MAX_PARALLEL_RSYNC="${MAX_PARALLEL_RSYNC:-3}"
 DRY_RUN="${DRY_RUN:-0}"
 EMAIL_TO="${EMAIL_TO:-scntech@shortcutoslo.no}"
 EMAIL_SUBJECT_PREFIX="${EMAIL_SUBJECT_PREFIX:-Facilis backup report}"
 DEBUG_RSYNC="0"
 DEBUG_LOG_FILE=""
 RUN_LOG_FILE=""
+RUN_TEMP_DIR=""
 STOP_REQUESTED="0"
 backup_errors=0
 FCCMD_BIN=""
@@ -111,6 +113,111 @@ format_duration() {
 bytes_to_gb() {
     local bytes_value="$1"
     awk -v b="$bytes_value" 'BEGIN { printf "%.2f GB", (b / 1000000000) }'
+}
+
+result_file_value() {
+    local key="$1"
+    local result_file="$2"
+
+    awk -F= -v key="$key" '$1 == key { sub(/^[^=]*=/, "", $0); print; exit }' "$result_file"
+}
+
+run_volume_backup_job() {
+    local volume="$1"
+    local volume_name="$2"
+    local volume_capacity="$3"
+    local volume_available="$4"
+    local backup_path="$5"
+    local result_file="$6"
+    local volume_start_epoch
+
+    volume_start_epoch=$(date +%s)
+
+    local rsync_output
+    local rsync_exit_code=0
+    local files_copied
+    local transferred_size_bytes
+    local transferred_size
+    local volume_end_epoch
+    local volume_duration
+
+    if mkdir -p "$backup_path"; then
+        if [[ "$DEBUG_RSYNC" == "1" ]]; then
+            if rsync_output=$("$RSYNC_BIN" "${rsync_args[@]}" "$volume/" "$backup_path/" 2>&1 | tee -a "$DEBUG_LOG_FILE"); then
+                rsync_exit_code=0
+            else
+                rsync_exit_code=$?
+            fi
+        else
+            if rsync_output=$("$RSYNC_BIN" "${rsync_args[@]}" "$volume/" "$backup_path/" 2>&1); then
+                rsync_exit_code=0
+            else
+                rsync_exit_code=$?
+            fi
+        fi
+
+        if [[ "$rsync_exit_code" -eq 0 ]]; then
+            files_copied=$(printf '%s\n' "$rsync_output" | awk -F': ' '
+                /^Number of regular files transferred: / { print $2; found=1 }
+                /^Number of files transferred: / { print $2; found=1 }
+                END { if (!found) print "unknown" }
+            ')
+
+            transferred_size_bytes=$(printf '%s\n' "$rsync_output" | awk -F': ' '
+                /^Total transferred file size: / {
+                    gsub(/ bytes$/, "", $2)
+                    gsub(/,/, "", $2)
+                    print $2
+                    found=1
+                }
+                END { if (!found) print "0" }
+            ')
+
+            transferred_size=$(bytes_to_gb "$transferred_size_bytes")
+            volume_end_epoch=$(date +%s)
+            volume_duration=$((volume_end_epoch - volume_start_epoch))
+
+            {
+                printf 'status=success\n'
+                printf 'volume_name=%s\n' "$volume_name"
+                printf 'volume_capacity=%s\n' "$volume_capacity"
+                printf 'volume_available=%s\n' "$volume_available"
+                printf 'files_copied=%s\n' "$files_copied"
+                printf 'transferred_size_bytes=%s\n' "$transferred_size_bytes"
+                printf 'transferred_size=%s\n' "$transferred_size"
+                printf 'duration_seconds=%s\n' "$volume_duration"
+            } > "$result_file"
+        else
+            log "ERROR" "Failed to backup: $volume_name"
+            while IFS= read -r rsync_error_line; do
+                [[ -n "$rsync_error_line" ]] && log "ERROR" "rsync: $rsync_error_line"
+            done <<< "$rsync_output"
+
+            {
+                printf 'status=failure\n'
+                printf 'volume_name=%s\n' "$volume_name"
+                printf 'volume_capacity=%s\n' "$volume_capacity"
+                printf 'volume_available=%s\n' "$volume_available"
+                printf 'files_copied=unknown\n'
+                printf 'transferred_size_bytes=0\n'
+                printf 'transferred_size=0.00 GB\n'
+                printf 'duration_seconds=0\n'
+            } > "$result_file"
+        fi
+    else
+        log "ERROR" "Failed to create backup directory: $backup_path"
+
+        {
+            printf 'status=failure\n'
+            printf 'volume_name=%s\n' "$volume_name"
+            printf 'volume_capacity=%s\n' "$volume_capacity"
+            printf 'volume_available=%s\n' "$volume_available"
+            printf 'files_copied=unknown\n'
+            printf 'transferred_size_bytes=0\n'
+            printf 'transferred_size=0.00 GB\n'
+            printf 'duration_seconds=0\n'
+        } > "$result_file"
+    fi
 }
 
 log_backup_destination_space() {
@@ -248,9 +355,13 @@ EOF
     local run_start_human
     local host_name
     backup_errors=0
-    local total_transferred_bytes=0
 
-    RUN_LOG_FILE=$(mktemp -t facilis_backup_run.XXXX.log)
+    if ! [[ "$MAX_PARALLEL_RSYNC" =~ ^[1-9][0-9]*$ ]]; then
+        error_exit "MAX_PARALLEL_RSYNC must be a positive integer"
+    fi
+
+    RUN_TEMP_DIR=$(mktemp -d -t facilis_backup_run.XXXXXX)
+    RUN_LOG_FILE="$RUN_TEMP_DIR/facilis_backup_run.log"
     
     # Global trap catches exits anywhere in main and sends the report
     trap '
@@ -263,6 +374,7 @@ EOF
             send_email_report "CRASHED/INTERRUPTED (Code $exit_code)"; 
         fi; 
         [[ -n "${RUN_LOG_FILE:-}" && -f "$RUN_LOG_FILE" ]] && rm -f "$RUN_LOG_FILE"
+        [[ -n "${RUN_TEMP_DIR:-}" && -d "$RUN_TEMP_DIR" ]] && rm -rf "$RUN_TEMP_DIR"
     ' EXIT
     trap 'request_stop' INT TERM
 
@@ -340,6 +452,7 @@ EOF
     log_backup_destination_space
     log "INFO" ""
     log "INFO" "Volumes to be backed up:"
+    log "INFO" "Concurrent rsync jobs: $MAX_PARALLEL_RSYNC"
     while IFS='|' read -r _ volume_name volume_capacity volume_available; do
         if [[ "$STOP_REQUESTED" == "1" ]]; then
             log "WARN" "Stopping before the next volume because exit was requested."
@@ -381,6 +494,71 @@ EOF
     done <<< "$mounts"
     
     local backed_up_summary=""
+    local total_transferred_bytes=0
+    local -a backup_job_pids=()
+    local -a backup_job_result_files=()
+    local backup_job_index=0
+
+    collect_backup_job_result() {
+        local job_index
+        local job_pid
+        local result_file
+        local result_status
+        local result_volume_name
+        local result_volume_capacity
+        local result_volume_available
+        local result_files_copied
+        local result_transferred_size_bytes
+        local result_transferred_size
+        local result_duration_seconds
+        local -a remaining_pids=()
+        local -a remaining_result_files=()
+        local remaining_index
+
+        while true; do
+            for job_index in "${!backup_job_result_files[@]}"; do
+                result_file="${backup_job_result_files[$job_index]}"
+
+                if [[ -f "$result_file" ]]; then
+                    job_pid="${backup_job_pids[$job_index]}"
+
+                    if ! wait "$job_pid"; then
+                        backup_errors=1
+                    fi
+
+                    result_status=$(result_file_value status "$result_file")
+                    result_volume_name=$(result_file_value volume_name "$result_file")
+                    result_volume_capacity=$(result_file_value volume_capacity "$result_file")
+                    result_volume_available=$(result_file_value volume_available "$result_file")
+                    result_files_copied=$(result_file_value files_copied "$result_file")
+                    result_transferred_size_bytes=$(result_file_value transferred_size_bytes "$result_file")
+                    result_transferred_size=$(result_file_value transferred_size "$result_file")
+                    result_duration_seconds=$(result_file_value duration_seconds "$result_file")
+
+                    if [[ "$result_status" == "success" ]]; then
+                        backed_up_summary+="- ${result_volume_name} | size: ${result_volume_capacity:-unknown} | available: ${result_volume_available} | files copied: ${result_files_copied} | copied size: ${result_transferred_size} | duration: $(format_duration "$result_duration_seconds")"$'\n'
+                        total_transferred_bytes=$((total_transferred_bytes + result_transferred_size_bytes))
+                    else
+                        backup_errors=1
+                    fi
+
+                    for remaining_index in "${!backup_job_pids[@]}"; do
+                        [[ "$remaining_index" == "$job_index" ]] && continue
+                        remaining_pids+=("${backup_job_pids[$remaining_index]}")
+                        remaining_result_files+=("${backup_job_result_files[$remaining_index]}")
+                    done
+
+                    backup_job_pids=("${remaining_pids[@]}")
+                    backup_job_result_files=("${remaining_result_files[@]}")
+                    log "INFO" "Active rsync jobs remaining: ${#backup_job_pids[@]}"
+                    return 0
+                fi
+            done
+
+            sleep 1
+        done
+    }
+
     while IFS='|' read -r volume volume_name volume_capacity volume_available; do
         if [[ "$STOP_REQUESTED" == "1" ]]; then
             log "WARN" "Stopping before the next volume because exit was requested."
@@ -401,10 +579,6 @@ EOF
 
         local backup_path
         backup_path=$(get_volume_backup_path "$volume_name")
-        local volume_start_epoch
-
-        volume_start_epoch=$(date +%s)
-
         if [[ "$backup_path" == "SKIP" ]]; then
             log "INFO" "Skipping volume by rule: $volume_name"
             continue
@@ -412,66 +586,22 @@ EOF
 
         log "INFO" "Backup path for $volume_name: $backup_path"
 
-        if mkdir -p "$backup_path"; then
-            local rsync_output
-            local rsync_exit_code=0
+        while [[ ${#backup_job_pids[@]} -ge $MAX_PARALLEL_RSYNC ]]; do
+            collect_backup_job_result "${backup_job_pids[0]}" "${backup_job_result_files[0]}"
+        done
 
-            if [[ "$DEBUG_RSYNC" == "1" ]]; then
-                if rsync_output=$("$RSYNC_BIN" "${rsync_args[@]}" "$volume/" "$backup_path/" 2>&1 | tee -a "$DEBUG_LOG_FILE"); then
-                    rsync_exit_code=0
-                else
-                    rsync_exit_code=$?
-                fi
-            else
-                if rsync_output=$("$RSYNC_BIN" "${rsync_args[@]}" "$volume/" "$backup_path/" 2>&1); then
-                    rsync_exit_code=0
-                else
-                    rsync_exit_code=$?
-                fi
-            fi
+        local result_file
+        result_file="$RUN_TEMP_DIR/job_${backup_job_index}.result"
 
-            if [[ "$rsync_exit_code" -eq 0 ]]; then
-                local files_copied
-                local transferred_size_bytes
-                local transferred_size
-                local volume_end_epoch
-                local volume_duration
-
-                files_copied=$(printf '%s\n' "$rsync_output" | awk -F': ' '
-                    /^Number of regular files transferred: / { print $2; found=1 }
-                    /^Number of files transferred: / { print $2; found=1 }
-                    END { if (!found) print "unknown" }
-                ')
-
-                transferred_size_bytes=$(printf '%s\n' "$rsync_output" | awk -F': ' '
-                    /^Total transferred file size: / {
-                        gsub(/ bytes$/, "", $2)
-                        gsub(/,/, "", $2)
-                        print $2
-                        found=1
-                    }
-                    END { if (!found) print "0" }
-                ')
-
-                transferred_size=$(bytes_to_gb "$transferred_size_bytes")
-                total_transferred_bytes=$((total_transferred_bytes + transferred_size_bytes))
-
-                volume_end_epoch=$(date +%s)
-                volume_duration=$((volume_end_epoch - volume_start_epoch))
-
-                backed_up_summary+="- ${volume_name} | size: ${volume_capacity:-unknown} | available: ${volume_available} | files copied: ${files_copied} | copied size: ${transferred_size} | duration: $(format_duration "$volume_duration")"$'\n'
-            else
-                log "ERROR" "Failed to backup: $volume_name"
-                backup_errors=1
-                while IFS= read -r rsync_error_line; do
-                    [[ -n "$rsync_error_line" ]] && log "ERROR" "rsync: $rsync_error_line"
-                done <<< "$rsync_output"
-            fi
-        else
-            log "ERROR" "Failed to create backup directory: $backup_path"
-            backup_errors=1
-        fi
+        run_volume_backup_job "$volume" "$volume_name" "$volume_capacity" "$volume_available" "$backup_path" "$result_file" &
+        backup_job_pids+=("$!")
+        backup_job_result_files+=("$result_file")
+        backup_job_index=$((backup_job_index + 1))
     done <<< "$mounts"
+
+    while [[ ${#backup_job_pids[@]} -gt 0 ]]; do
+        collect_backup_job_result "${backup_job_pids[0]}" "${backup_job_result_files[0]}"
+    done
 
     if [[ -n "$backed_up_summary" ]]; then
         log_section "Backed up volumes"
@@ -495,7 +625,11 @@ EOF
     local total_transferred_gb
     local throughput_mbps
     total_transferred_gb=$(bytes_to_gb "$total_transferred_bytes")
-    throughput_mbps=$(awk -v bytes="$total_transferred_bytes" -v secs="$total_duration" 'BEGIN { printf "%.2f", (bytes / secs / 1000000) }')
+    if [[ "$total_duration" -gt 0 ]]; then
+        throughput_mbps=$(awk -v bytes="$total_transferred_bytes" -v secs="$total_duration" 'BEGIN { printf "%.2f", (bytes / secs / 1000000) }')
+    else
+        throughput_mbps="0.00"
+    fi
     log "INFO" "Total data transferred: $total_transferred_gb"
     log "INFO" "Average throughput: ${throughput_mbps} MB/s"
 

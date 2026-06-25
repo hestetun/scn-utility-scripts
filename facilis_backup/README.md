@@ -81,6 +81,7 @@ Edit `facilis_backup_exclude.txt`. Patterns are relative to each source volume r
 
 - `BACKUP_DEST`: backup destination path
 - `DRY_RUN`: set to `1` for rsync dry-run mode
+- `MAX_PARALLEL_RSYNC`: number of concurrent rsync jobs to run, default `3`
 
 ## LaunchAgent Setup
 
