@@ -97,8 +97,18 @@ show_status() {
 
     if pgrep -x "fcp" >/dev/null 2>&1; then
         echo "Process state: Running (fcp PID: $(pgrep -x "fcp" | tr '\n' ' '))"
-    elif [[ -f "/tmp/com.scn.facilis-cache.lock/pid" ]] && kill -0 "$(cat /tmp/com.scn.facilis-cache.lock/pid 2>/dev/null)" 2>/dev/null; then
-        echo "Process state: Running (script PID: $(cat /tmp/com.scn.facilis-cache.lock/pid))"
+    elif [[ -f "/tmp/com.scn.facilis-cache.lockfile" ]]; then
+        local lock_status=0
+        /usr/bin/perl -MFcntl=:flock -e '
+            open my $lock, "<", $ARGV[0] or exit 2;
+            exit 0 if flock($lock, LOCK_EX | LOCK_NB);
+            exit(($!{EWOULDBLOCK} || $!{EAGAIN}) ? 1 : 2);
+        ' /tmp/com.scn.facilis-cache.lockfile || lock_status=$?
+        case "$lock_status" in
+            0) echo "Process state: Idle" ;;
+            1) echo "Process state: Running (cache lock held)" ;;
+            *) echo "Process state: Unknown (cannot inspect cache lock)" ;;
+        esac
     else
         echo "Process state: Idle"
     fi

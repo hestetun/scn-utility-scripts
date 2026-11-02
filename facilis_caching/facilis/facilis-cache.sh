@@ -4,43 +4,39 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FCP_BIN="${FCP_BIN:-$SCRIPT_DIR/fcp}"
 LOG_DIR="$HOME/Library/Logs/Shortcut"
-LOCK_DIR="/tmp/com.scn.facilis-cache.lock"
-LOCK_PID_FILE="$LOCK_DIR/pid"
+LOCK_FILE="/tmp/com.scn.facilis-cache.lockfile"
 
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 
-# Prevent overlapping runs (checks both lock PID and any active fcp process)
-acquire_lock() {
-    if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-        local existing_pid=""
-        if [[ -f "$LOCK_PID_FILE" ]]; then
-            existing_pid="$(cat "$LOCK_PID_FILE" 2>/dev/null || true)"
-        fi
+# flock is held on an open file descriptor, including by fcp if the shell dies.
+# Never remove the lock file: another process could already have it open.
+if [[ "${FACILIS_CACHE_LOCK_HELD:-}" != "1" ]]; then
+    exec /usr/bin/perl -MFcntl=:DEFAULT,:flock -e '
+        my ($path, $script, @args) = @ARGV;
+        umask 0022;
+        die "Refusing symlink lock file: $path\n" if -l $path;
+        sysopen(my $lock, $path, O_RDONLY | O_CREAT | O_NOFOLLOW, 0644)
+            or die "Cannot open lock file $path: $!\n";
+        die "Not a regular lock file: $path\n" unless -f $lock;
+        if (!flock($lock, LOCK_EX | LOCK_NB)) {
+            if ($!{EWOULDBLOCK} || $!{EAGAIN}) {
+                print "--- Skipping run: facilis-cache.sh is already running ---\n";
+                exit 0;
+            }
+            die "Cannot lock $path: $!\n";
+        }
+        $^F = fileno($lock);
+        fcntl($lock, F_SETFD, 0) or die "Cannot preserve lock: $!\n";
+        $ENV{FACILIS_CACHE_LOCK_HELD} = 1;
+        exec "/bin/bash", $script, @args or die "Cannot start cache script: $!\n";
+    ' "$LOCK_FILE" "$0" "$@"
+fi
+unset FACILIS_CACHE_LOCK_HELD
 
-        if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
-            echo "--- Skipping run at $(date): facilis-cache.sh is already running (PID $existing_pid) ---"
-            exit 0
-        fi
-
-        # Stale lock from an interrupted run or reboot; replace it
-        rm -rf "$LOCK_DIR" 2>/dev/null || true
-        if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-            echo "--- Skipping run at $(date): Another instance is acquiring the lock ---"
-            exit 0
-        fi
-    fi
-
-    if pgrep -x "fcp" >/dev/null 2>&1; then
-        rm -rf "$LOCK_DIR" 2>/dev/null || true
-        echo "--- Skipping run at $(date): 'fcp' process is already running ---"
-        exit 0
-    fi
-
-    echo "$$" > "$LOCK_PID_FILE"
-    trap 'rm -rf "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM HUP
-}
-
-acquire_lock
+if pgrep -x "fcp" >/dev/null 2>&1; then
+    echo "--- Skipping run at $(date): 'fcp' process is already running ---"
+    exit 0
+fi
 
 echo "--- Cache run started at $(date) (user: $(id -un), host: $(hostname), pid: $$) ---"
 
