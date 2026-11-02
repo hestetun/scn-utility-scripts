@@ -31,7 +31,8 @@ class OverlapTest(unittest.TestCase):
         self.script.write_text(text)
         self.write_command("pgrep", "exit 1")
         self.write_command("xattr", "exit 0")
-        self.write_command("mount", 'printf "mock on %s (apfs)\\n" "$TEST_ROOT/volumes/test_edit"')
+        self.write_command("mount", 'printf "mock on %s (apfs)\\n" '
+                           '"$TEST_ROOT/volumes/test_edit" "$TEST_ROOT/volumes/dpos_edit"')
         # Widen the old lock's mkdir-before-PID window deterministically.
         self.write_command(
             "mkdir", '/bin/mkdir "$@"; result=$?; case "${*: -1}" in '
@@ -39,6 +40,7 @@ class OverlapTest(unittest.TestCase):
         )
         self.write_command(
             "fake-fcp", 'echo "$$" >> "$TEST_ROOT/starts"\n'
+            'printf "%s\\n" "$2" >> "$TEST_ROOT/paths"\n'
             'while [[ ! -e "$TEST_ROOT/release" ]]; do sleep 0.05; done'
         )
         self.env = os.environ.copy()
@@ -118,6 +120,54 @@ class OverlapTest(unittest.TestCase):
         process = self.start()
         self.assertNotEqual(process.wait(timeout=3), 0)
         self.assertEqual(self.start_count(), 0)
+
+    def test_caches_both_media_folders(self):
+        volume = self.root / "volumes" / "dpos_edit"
+        avid = volume / "Avid MediaFiles"
+        from_set = volume / "editorial" / "media" / "_from-set"
+        avid.mkdir(parents=True)
+        from_set.mkdir(parents=True)
+        self.env["SOURCE_VOL"] = str(volume)
+        self.release.touch()
+        process = self.start()
+        self.assertEqual(process.wait(timeout=3), 0)
+        self.assertEqual((self.root / "paths").read_text().splitlines(),
+                         [str(avid), str(from_set)])
+
+    def test_from_set_is_cached_even_when_avid_folder_is_missing(self):
+        volume = self.root / "volumes" / "dpos_edit"
+        from_set = volume / "editorial" / "media" / "_from-set"
+        from_set.mkdir(parents=True)
+        self.env["SOURCE_VOL"] = str(volume)
+        self.release.touch()
+        process = self.start()
+        self.assertEqual(process.wait(timeout=3), 0)
+        self.assertEqual((self.root / "paths").read_text().splitlines(), [str(from_set)])
+
+    def test_other_volumes_also_cache_from_set(self):
+        volume = self.root / "volumes" / "test_edit"
+        (volume / "editorial" / "media" / "_from-set").mkdir(parents=True)
+        self.env["SOURCE_VOL"] = str(volume)
+        self.release.touch()
+        process = self.start()
+        self.assertEqual(process.wait(timeout=3), 0)
+        self.assertEqual((self.root / "paths").read_text().splitlines(),
+                         [str(volume / "Avid MediaFiles"),
+                          str(volume / "editorial" / "media" / "_from-set")])
+
+    def test_error_in_one_folder_does_not_skip_the_other(self):
+        volume = self.root / "volumes" / "dpos_edit"
+        avid = volume / "Avid MediaFiles"
+        from_set = volume / "editorial" / "media" / "_from-set"
+        avid.mkdir(parents=True)
+        from_set.mkdir(parents=True)
+        self.env["SOURCE_VOL"] = str(volume)
+        self.write_command("fake-fcp", 'printf "%s\\n" "$2" >> "$TEST_ROOT/paths"\n'
+                           '[[ "$2" != */"Avid MediaFiles" ]] || exit 4')
+        process = self.start()
+        self.assertEqual(process.wait(timeout=3), 4)
+        self.assertEqual((self.root / "paths").read_text().splitlines(),
+                         [str(avid), str(from_set)])
 
 
 if __name__ == "__main__":

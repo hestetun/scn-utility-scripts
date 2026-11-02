@@ -108,20 +108,23 @@ for vol in "${TARGET_VOLUMES[@]}"; do
         continue
     fi
 
-    media_dir="$vol/Avid MediaFiles"
-    if [[ ! -d "$media_dir" ]]; then
-        echo "--- Warning: '$media_dir' not found on '$vol'. Skipping. ---"
-        continue
-    fi
+    cache_dirs=("$vol/Avid MediaFiles" "$vol/editorial/media/_from-set")
 
-    echo "--- Running fcp on '$media_dir' ---"
-    if "$FCP_BIN" -q "$media_dir" -r; then
-        echo "--- Completed '$media_dir' at $(date) ---"
-    else
-        rc=$?
-        echo "--- Error: fcp exited with code $rc for '$media_dir' at $(date) ---"
-        overall_status=$rc
-    fi
+    for media_dir in "${cache_dirs[@]}"; do
+        if [[ ! -d "$media_dir" ]]; then
+            echo "--- Warning: '$media_dir' not found on '$vol'. Skipping. ---"
+            continue
+        fi
+
+        echo "--- Running fcp on '$media_dir' ---"
+        if "$FCP_BIN" -q "$media_dir" -r; then
+            echo "--- Completed '$media_dir' at $(date) ---"
+        else
+            rc=$?
+            echo "--- Error: fcp exited with code $rc for '$media_dir' at $(date) ---"
+            overall_status=$rc
+        fi
+    done
 done
 
 echo "--- Cache run finished at $(date) (exit: $overall_status) ---"
