@@ -20,7 +20,7 @@ Usage: $(basename "$0") [options]
 
 Rolls out and manages the Facilis media cache LaunchAgent ($LABEL)
 for the currently logged-in user ($(id -un)).
-Scheduled daily at 20:00 and 02:00.
+Scheduled daily at 20:00 and 03:00.
 
 Options:
   --status            Show LaunchAgent status, paths, and detected *_edit volumes
@@ -179,7 +179,7 @@ echo "Cleared quarantine attributes and set executable permissions."
 mkdir -p "$LOG_DIR" "$LAUNCH_AGENTS_DIR"
 echo "Ensured log directory exists: $LOG_DIR"
 
-# 4. Write user-specific LaunchAgent plist (scheduled at 20:00 and 02:00)
+# 4. Write user-specific LaunchAgent plist (scheduled at 20:00 and 03:00)
 sed \
     -e "s|__INSTALL_DIR__|$INSTALL_DIR|g" \
     -e "s|__LOG_DIR__|$LOG_DIR|g" \
@@ -193,5 +193,5 @@ load_agent
 
 echo ""
 echo "Rollout complete!"
-echo "Schedule:      Daily at 20:00 and 02:00"
+echo "Schedule:      Daily at 20:00 and 03:00"
 show_status
